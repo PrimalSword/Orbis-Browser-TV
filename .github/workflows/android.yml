@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 jobs:
@@ -74,6 +74,36 @@ jobs:
                 body
               });
             }
+
+      - name: Prepare release APK
+        if: steps.gradle_build.outcome == 'success' && github.event_name != 'pull_request'
+        id: release_info
+        shell: bash
+        run: |
+          VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          TAG="v${VERSION}"
+          FILE="Orbis-Browser-TV-${VERSION}.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$FILE"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Publish automatic update release
+        if: steps.gradle_build.outcome == 'success' && github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release_info.outputs.tag }}
+          VERSION: ${{ steps.release_info.outputs.version }}
+          FILE: ${{ steps.release_info.outputs.file }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$FILE" --clobber
+          else
+            gh release create "$TAG" "$FILE" \
+              --title "Orbis Browser $VERSION" \
+              --notes "Atualização automática do Orbis Browser."
+          fi
 
       - name: Upload APK
         if: steps.gradle_build.outcome == 'success'
