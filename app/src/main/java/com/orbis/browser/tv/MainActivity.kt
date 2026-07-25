@@ -41,7 +41,16 @@ class MainActivity : Activity() {
 
         configureWebView()
         configureControls()
-        webView.loadUrl(HOME_URL)
+
+        if (savedInstanceState != null) {
+            webView.restoreState(savedInstanceState)
+        } else {
+            val lastUrl = getSharedPreferences(BROWSER_PREFS, MODE_PRIVATE)
+                .getString(KEY_LAST_URL, HOME_URL)
+                .orEmpty()
+            webView.loadUrl(lastUrl.ifBlank { HOME_URL })
+        }
+
         UpdateManager(this).checkForUpdates()
     }
 
@@ -77,7 +86,14 @@ class MainActivity : Activity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                addressBar.setText(url.orEmpty())
+                val currentUrl = url.orEmpty()
+                addressBar.setText(currentUrl)
+                if (currentUrl.startsWith("http://") || currentUrl.startsWith("https://")) {
+                    getSharedPreferences(BROWSER_PREFS, MODE_PRIVATE)
+                        .edit()
+                        .putString(KEY_LAST_URL, currentUrl)
+                        .apply()
+                }
                 view?.evaluateJavascript(POPUP_GUARD_SCRIPT, null)
             }
         }
@@ -97,7 +113,13 @@ class MainActivity : Activity() {
                 customViewCallback = callback
                 toolbar.visibility = View.GONE
                 webView.visibility = View.GONE
-                webContainer.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                webContainer.addView(
+                    view,
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
                 window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
             }
 
@@ -115,10 +137,24 @@ class MainActivity : Activity() {
     }
 
     private fun configureControls() {
-        findViewById<Button>(R.id.backButton).setOnClickListener { if (webView.canGoBack()) webView.goBack() }
-        findViewById<Button>(R.id.forwardButton).setOnClickListener { if (webView.canGoForward()) webView.goForward() }
-        findViewById<Button>(R.id.homeButton).setOnClickListener { webView.loadUrl(HOME_URL) }
-        findViewById<Button>(R.id.reloadButton).setOnClickListener { webView.reload() }
+        findViewById<Button>(R.id.backButton).setOnClickListener {
+            if (webView.canGoBack()) webView.goBack()
+        }
+        findViewById<Button>(R.id.forwardButton).setOnClickListener {
+            if (webView.canGoForward()) webView.goForward()
+        }
+        findViewById<Button>(R.id.homeButton).setOnClickListener {
+            webView.loadUrl(HOME_URL)
+        }
+
+        val reloadButton = findViewById<Button>(R.id.reloadButton)
+        reloadButton.setOnClickListener { webView.reload() }
+        reloadButton.setOnLongClickListener {
+            Toast.makeText(this, "Verificando atualização…", Toast.LENGTH_SHORT).show()
+            UpdateManager(this).checkForUpdates(force = true)
+            true
+        }
+
         findViewById<Button>(R.id.goButton).setOnClickListener { navigateFromAddressBar() }
         addressBar.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO) {
@@ -136,8 +172,16 @@ class MainActivity : Activity() {
             input.contains(".") && !input.contains(" ") -> "https://$input"
             else -> "https://www.google.com/search?q=" + android.net.Uri.encode(input)
         }
-        if (AdBlocker.shouldBlock(url)) Toast.makeText(this, "Endereço bloqueado", Toast.LENGTH_SHORT).show()
-        else webView.loadUrl(url)
+        if (AdBlocker.shouldBlock(url)) {
+            Toast.makeText(this, "Endereço bloqueado", Toast.LENGTH_SHORT).show()
+        } else {
+            webView.loadUrl(url)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        webView.saveState(outState)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onBackPressed() {
@@ -155,6 +199,8 @@ class MainActivity : Activity() {
 
     companion object {
         private const val HOME_URL = "https://www.google.com"
+        private const val BROWSER_PREFS = "orbis_browser_preferences"
+        private const val KEY_LAST_URL = "last_url"
         private const val POPUP_GUARD_SCRIPT = """
             (function(){
               window.open = function(){ return null; };
