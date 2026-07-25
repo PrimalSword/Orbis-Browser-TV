@@ -141,7 +141,7 @@ class MainActivity : Activity() {
 
     override fun onBackPressed() {
         when {
-            customView != null -> webView.webChromeClient.onHideCustomView()
+            customView != null -> webView.webChromeClient?.onHideCustomView()
             webView.canGoBack() -> webView.goBack()
             else -> super.onBackPressed()
         }
