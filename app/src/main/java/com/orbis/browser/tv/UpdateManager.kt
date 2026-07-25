@@ -26,11 +26,26 @@ class UpdateManager(private val activity: Activity) {
         thread {
             runCatching { fetchLatestRelease() }
                 .onSuccess { release ->
-                    if (release != null && isNewer(release.version, BuildConfig.VERSION_NAME)) {
+                    if (release != null && isNewer(release.version, localVersionName())) {
                         activity.runOnUiThread { showUpdateDialog(release) }
                     }
                 }
         }
+    }
+
+    private fun localVersionName(): String {
+        return runCatching {
+            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                activity.packageManager.getPackageInfo(
+                    activity.packageName,
+                    android.content.pm.PackageManager.PackageInfoFlags.of(0)
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                activity.packageManager.getPackageInfo(activity.packageName, 0)
+            }
+            packageInfo.versionName ?: "0.0.0"
+        }.getOrDefault("0.0.0")
     }
 
     private fun fetchLatestRelease(): ReleaseInfo? {
