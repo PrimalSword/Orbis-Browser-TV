@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#111111">
+
+    <LinearLayout
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <Button
+            android:id="@+id/backButton"
+            android:layout_width="52dp"
+            android:layout_height="48dp"
+            android:text="‹"
+            android:focusable="true" />
+
+        <Button
+            android:id="@+id/forwardButton"
+            android:layout_width="52dp"
+            android:layout_height="48dp"
+            android:text="›"
+            android:focusable="true" />
+
+        <Button
+            android:id="@+id/homeButton"
+            android:layout_width="58dp"
+            android:layout_height="48dp"
+            android:text="⌂"
+            android:focusable="true" />
+
+        <EditText
+            android:id="@+id/addressBar"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:singleLine="true"
+            android:hint="Digite um endereço ou pesquisa"
+            android:imeOptions="actionGo"
+            android:inputType="textUri"
+            android:paddingHorizontal="12dp"
+            android:focusable="true" />
+
+        <Button
+            android:id="@+id/goButton"
+            android:layout_width="70dp"
+            android:layout_height="48dp"
+            android:text="Ir"
+            android:focusable="true" />
+
+        <Button
+            android:id="@+id/reloadButton"
+            android:layout_width="58dp"
+            android:layout_height="48dp"
+            android:text="↻"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:max="100" />
+
+    <FrameLayout
+        android:id="@+id/webContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <WebView
+            android:id="@+id/webView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:focusable="true"
+            android:focusableInTouchMode="true" />
+    </FrameLayout>
+
+</LinearLayout>
