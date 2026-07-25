@@ -42,6 +42,7 @@ class MainActivity : Activity() {
         configureWebView()
         configureControls()
         webView.loadUrl(HOME_URL)
+        UpdateManager(this).checkForUpdates()
     }
 
     @SuppressLint("SetJavaScriptEnabled")
