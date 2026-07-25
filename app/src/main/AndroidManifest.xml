@@ -11,7 +11,9 @@
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
         android:hardwareAccelerated="true"
-        android:label="Orbis Browser TV"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="Orbis Browser"
         android:theme="@style/Theme.OrbisBrowserTV">
 
         <activity
