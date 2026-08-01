@@ -13,6 +13,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebViewRenderProcessGoneDetail
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -72,15 +73,29 @@ class MainActivity : Activity() {
         }
 
         webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
-                return if (AdBlocker.shouldBlock(request?.url?.toString())) {
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                val pageUrl = view?.url.orEmpty()
+                val requestUrl = request?.url?.toString().orEmpty()
+
+                // Sites with complex video players can break when an essential
+                // script is blocked. Compatibility mode leaves their subresources intact.
+                if (isCompatibilitySite(pageUrl)) {
+                    return super.shouldInterceptRequest(view, request)
+                }
+
+                return if (AdBlocker.shouldBlock(requestUrl)) {
                     WebResourceResponse("text/plain", "utf-8", null)
-                } else super.shouldInterceptRequest(view, request)
+                } else {
+                    super.shouldInterceptRequest(view, request)
+                }
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return true
-                if (AdBlocker.shouldBlock(url)) return true
+                if (!isCompatibilitySite(url) && AdBlocker.shouldBlock(url)) return true
                 return false
             }
 
@@ -94,7 +109,29 @@ class MainActivity : Activity() {
                         .putString(KEY_LAST_URL, currentUrl)
                         .apply()
                 }
-                view?.evaluateJavascript(POPUP_GUARD_SCRIPT, null)
+
+                // The old window.open replacement was removed because some video
+                // players rely on it and could terminate older projector WebViews.
+            }
+
+            override fun onRenderProcessGone(
+                view: WebView?,
+                detail: WebViewRenderProcessGoneDetail?
+            ): Boolean {
+                getSharedPreferences(BROWSER_PREFS, MODE_PRIVATE)
+                    .edit()
+                    .putString(KEY_LAST_URL, HOME_URL)
+                    .apply()
+
+                Toast.makeText(
+                    this@MainActivity,
+                    "A página sobrecarregou o navegador. Reiniciando com segurança…",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                view?.destroy()
+                recreate()
+                return true
             }
         }
 
@@ -172,11 +209,16 @@ class MainActivity : Activity() {
             input.contains(".") && !input.contains(" ") -> "https://$input"
             else -> "https://www.google.com/search?q=" + android.net.Uri.encode(input)
         }
-        if (AdBlocker.shouldBlock(url)) {
+        if (!isCompatibilitySite(url) && AdBlocker.shouldBlock(url)) {
             Toast.makeText(this, "Endereço bloqueado", Toast.LENGTH_SHORT).show()
         } else {
             webView.loadUrl(url)
         }
+    }
+
+    private fun isCompatibilitySite(url: String): Boolean {
+        val normalized = url.lowercase()
+        return COMPATIBILITY_HOSTS.any { host -> normalized.contains(host) }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -193,7 +235,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
-        webView.destroy()
+        if (::webView.isInitialized) webView.destroy()
         super.onDestroy()
     }
 
@@ -201,14 +243,6 @@ class MainActivity : Activity() {
         private const val HOME_URL = "https://www.google.com"
         private const val BROWSER_PREFS = "orbis_browser_preferences"
         private const val KEY_LAST_URL = "last_url"
-        private const val POPUP_GUARD_SCRIPT = """
-            (function(){
-              window.open = function(){ return null; };
-              document.addEventListener('click', function(e){
-                var a = e.target.closest && e.target.closest('a[target="_blank"]');
-                if(a){ a.removeAttribute('target'); }
-              }, true);
-            })();
-        """
+        private val COMPATIBILITY_HOSTS = setOf("animefire.io")
     }
 }
